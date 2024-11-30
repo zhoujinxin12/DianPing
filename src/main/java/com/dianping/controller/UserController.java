@@ -3,9 +3,12 @@ package com.dianping.controller;
 
 import com.dianping.dto.LoginFormDTO;
 import com.dianping.dto.Result;
+import com.dianping.dto.UserDTO;
+import com.dianping.entity.User;
 import com.dianping.entity.UserInfo;
 import com.dianping.service.IUserInfoService;
 import com.dianping.service.IUserService;
+import com.dianping.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,9 +19,6 @@ import javax.servlet.http.HttpSession;
  * <p>
  * 前端控制器
  * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
  */
 @Slf4j
 @RestController
@@ -37,7 +37,7 @@ public class UserController {
     @PostMapping("code")
     public Result sendCode(@RequestParam("phone") String phone, HttpSession session) {
         // TODO 发送短信验证码并保存验证码
-        return Result.fail("功能未完成");
+        return userService.sendCode(phone, session);
     }
 
     /**
@@ -47,7 +47,7 @@ public class UserController {
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginForm, HttpSession session){
         // TODO 实现登录功能
-        return Result.fail("功能未完成");
+        return userService.login(loginForm, session);
     }
 
     /**
@@ -63,7 +63,8 @@ public class UserController {
     @GetMapping("/me")
     public Result me(){
         // TODO 获取当前登录的用户并返回
-        return Result.fail("功能未完成");
+        UserDTO user = UserHolder.getUser();
+        return Result.ok(user);
     }
 
     @GetMapping("/info/{id}")
