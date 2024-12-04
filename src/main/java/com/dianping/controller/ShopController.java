@@ -8,8 +8,8 @@ import com.dianping.entity.Shop;
 import com.dianping.service.IShopService;
 import com.dianping.utils.SystemConstants;
 import org.springframework.web.bind.annotation.*;
-
 import javax.annotation.Resource;
+
 
 /**
  * <p>

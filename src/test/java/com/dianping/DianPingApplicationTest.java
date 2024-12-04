@@ -6,6 +6,7 @@ import com.dianping.utils.CacheClient;
 import com.dianping.utils.RedisIdWorker;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 import javax.annotation.Resource;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.dianping.utils.RedisConstants.CACHE_SHOP_KEY;
 
+//@EnableAspectJAutoProxy(exposeProxy = true)
 @SpringBootTest
 public class DianPingApplicationTest {
 

@@ -4,14 +4,12 @@ package com.dianping.controller;
 import com.dianping.dto.LoginFormDTO;
 import com.dianping.dto.Result;
 import com.dianping.dto.UserDTO;
-import com.dianping.entity.User;
 import com.dianping.entity.UserInfo;
 import com.dianping.service.IUserInfoService;
 import com.dianping.service.IUserService;
 import com.dianping.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
 

@@ -5,8 +5,8 @@ import com.dianping.dto.Result;
 import com.dianping.entity.Voucher;
 import com.dianping.service.IVoucherService;
 import org.springframework.web.bind.annotation.*;
-
 import javax.annotation.Resource;
+
 
 /**
  * <p>
