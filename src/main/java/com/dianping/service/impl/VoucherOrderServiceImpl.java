@@ -8,8 +8,12 @@ import com.dianping.service.ISeckillVoucherService;
 import com.dianping.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.dianping.utils.RedisIdWorker;
+import com.dianping.utils.SimpleRedisLock;
 import com.dianping.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +37,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private RedisIdWorker redisIdWorker;
 
+    @Resource
+//    private StringRedisTemplate stringRedisTemplate;
+    private RedissonClient redissonClient;
     @Override
     public Result seckillVoucher(Long voucherId) {
         // 1. 查询
@@ -54,10 +61,25 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
 
         Long userId = UserHolder.getUser().getId();
-        synchronized (userId.toString().intern()) {
+        // 创建锁对象
+//        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
+//        boolean isLock = lock.tryLock(1200);
+        boolean isLock = lock.tryLock();
+        // 判断是否获取锁成功
+        if (!isLock) {
+            // 获取锁失败，返回错误信息或重试
+            return Result.fail("不允许重复下单");
+        }
+        try {
+            // 直接调用 this 或 proxy 可能无法获取到代理对象，因为 this 可能指向的是当前类的实例，而不是经过 AOP 代理的对象。
+            // 使用 AopContext.currentProxy() 可以确保获取到当前执行方法的代理对象
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
             // 7. 返回订单id
             return proxy.createVoucherOrder(voucherId);
+        } finally {
+            // 释放锁
+            lock.unlock();
         }
     }
     // synchronized是一个锁
