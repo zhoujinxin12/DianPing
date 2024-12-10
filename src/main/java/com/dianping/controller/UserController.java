@@ -1,9 +1,11 @@
 package com.dianping.controller;
 
 
+import cn.hutool.core.bean.BeanUtil;
 import com.dianping.dto.LoginFormDTO;
 import com.dianping.dto.Result;
 import com.dianping.dto.UserDTO;
+import com.dianping.entity.User;
 import com.dianping.entity.UserInfo;
 import com.dianping.service.IUserInfoService;
 import com.dianping.service.IUserService;
@@ -55,7 +57,7 @@ public class UserController {
     @PostMapping("/logout")
     public Result logout(){
         // TODO 实现登出功能
-        return Result.fail("功能未完成");
+        return userService.logout();
     }
 
     @GetMapping("/me")
@@ -77,5 +79,16 @@ public class UserController {
         info.setUpdateTime(null);
         // 返回
         return Result.ok(info);
+    }
+
+    @GetMapping("/{id}")
+    public Result queryUserById(@PathVariable("id") Long userId) {
+        // 查询详情
+        User user = userService.getById(userId);
+        if (user == null) {
+            return Result.ok();
+        }
+        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
+        return Result.ok(userDTO);
     }
 }

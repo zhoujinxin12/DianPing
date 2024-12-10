@@ -1,19 +1,25 @@
 package com.dianping.service.impl;
 
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.dianping.dto.Result;
+import com.dianping.entity.Shop;
 import com.dianping.entity.Voucher;
 import com.dianping.mapper.VoucherMapper;
 import com.dianping.entity.SeckillVoucher;
 import com.dianping.service.ISeckillVoucherService;
 import com.dianping.service.IVoucherService;
+import com.dianping.utils.RedisData;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.dianping.utils.RedisConstants.CACHE_SHOP_KEY;
 import static com.dianping.utils.RedisConstants.SECKILL_STOCK_KEY;
 
 /**

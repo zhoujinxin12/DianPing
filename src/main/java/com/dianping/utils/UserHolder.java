@@ -1,7 +1,6 @@
 package com.dianping.utils;
 
 import com.dianping.dto.UserDTO;
-import com.dianping.entity.User;
 
 public class UserHolder {
     private static final ThreadLocal<UserDTO> tl = new ThreadLocal<>();

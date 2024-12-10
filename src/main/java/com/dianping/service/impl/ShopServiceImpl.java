@@ -1,17 +1,23 @@
 package com.dianping.service.impl;
 
+import cn.hutool.json.JSONUtil;
 import com.dianping.dto.Result;
 import com.dianping.entity.Shop;
 import com.dianping.mapper.ShopMapper;
 import com.dianping.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.dianping.utils.CacheClient;
+import com.dianping.utils.RedisData;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.dianping.utils.RedisConstants.*;
 
@@ -31,6 +37,21 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Resource
     private CacheClient cacheClient;
+
+    @PostConstruct
+    public void preloadShopInRedis() {
+        // 进行商店的预加载
+        // 1. 查询数据库中所有的shop
+        List<Shop> shopList = query().list();
+        for (Shop shop : shopList) {
+            String key = CACHE_SHOP_KEY + shop.getId();
+            RedisData redisData = new RedisData();
+            redisData.setExpireTime(LocalDateTime.now().plusSeconds(20L));
+            redisData.setData(shop);
+            // 写入redis
+            stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(redisData));
+        }
+    }
 
     @Override
     public Result queryById(Long id) {

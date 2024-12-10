@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * <p>
@@ -61,17 +63,31 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         SECKILL_SCRIPT.setResultType(Long.class);
     }
 
-    private BlockingQueue<VoucherOrder> orderTasks = new ArrayBlockingQueue<>(1024 * 1024);
-    private static final ExecutorService SECKILL_ORDER_EXECUTOR = Executors.newSingleThreadExecutor();
+//    private BlockingQueue<VoucherOrder> orderTasks = new ArrayBlockingQueue<>(1024 * 1024);
+//    private static final ExecutorService SECKILL_ORDER_EXECUTOR = Executors.newSingleThreadExecutor();
+
+    private final VoucherOrderHandler orderHandler = new VoucherOrderHandler();
+    private final Thread orderThread = new Thread(orderHandler);
     @PostConstruct
-    private void init() {
-        SECKILL_ORDER_EXECUTOR.submit(new VoucherOrderHandler());
+    public void init() {
+        orderThread.start();
+    }
+    @PreDestroy
+    public void shutdown() {
+        log.info("服务关闭，停止线程...");
+        orderHandler.stop();
+        try {
+            orderThread.join(3000); // 等待5秒以确保线程优雅退出
+        } catch (InterruptedException e) {
+            log.warn("等待工作线程关闭被中断");
+        }
     }
     private class VoucherOrderHandler implements Runnable {
         String queueName = "stream.orders";
+        private volatile boolean running = true;
         @Override
         public void run() {
-            while (true) {
+            while (running) {  // 只要running为true，线程才会继续运行
                 try {
                     // 1. 获取队列中的订单信息 XREADGROUP GROUP g1 c1 COUNT 1 BLOCK 2000(ms) STREAMS streams.order >
                     List<MapRecord<String, Object, Object>> list = stringRedisTemplate.opsForStream().read(
@@ -104,9 +120,11 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                 // 2. 创建订单
             }
         }
-
+        public void stop() {
+            running = false;
+        }
         private void handlePendingList() throws InterruptedException {
-            while (true) {
+            while (running) {
                 try {
                     // 1. 获取pending-list中的订单信息 XREADGROUP GROUP g1 c1 COUNT 1 STREAMS streams.order 0(0表示读取pending list)
                     List<MapRecord<String, Object, Object>> list = stringRedisTemplate.opsForStream().read(
