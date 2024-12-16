@@ -4,6 +4,8 @@ import com.dianping.dto.Result;
 import com.dianping.entity.VoucherOrder;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.Map;
+
 /**
  * <p>
  *  服务类
@@ -16,7 +18,7 @@ public interface IVoucherOrderService extends IService<VoucherOrder> {
 
     Result seckillVoucher(Long voucherId);
 
-    Result createVoucherOrder(Long voucherId);
+//    Result createVoucherOrder(Long voucherId);
 
-    void createVoucherOrder(VoucherOrder voucherOrder);
+    boolean insertVoucherOrderFromMQ(Map<String, Object> msg);
 }

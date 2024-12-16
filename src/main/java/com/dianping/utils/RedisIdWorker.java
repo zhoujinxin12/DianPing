@@ -22,6 +22,11 @@ public class RedisIdWorker {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
+    /**
+     * 生成订单号
+     * @param keyPrefix
+     * @return
+     */
     public long nextId(String keyPrefix) {
         // keyPrefix是业务的前缀
         // 1. 生成时间戳
@@ -31,13 +36,14 @@ public class RedisIdWorker {
         // 2. 生成序列号
         // 2.1. 获取当前日期，精确到天
         String date = now.format(DateTimeFormatter.ofPattern("yyyy:MM:dd"));
+        // icr:order:20241216
         long count = stringRedisTemplate.opsForValue().increment("icr:" + keyPrefix + ":" + date);
         // 3. 拼接并返回
         return timestamp << COUNT_BITS | count ;
     }
-    public static void main(String[] args) {
-        LocalDateTime time = LocalDateTime.of(2024, 1, 1, 0, 0, 0);
-        long second = time.toEpochSecond(ZoneOffset.UTC);
-        System.out.println("second=" + second);
-    }
+//    public static void main(String[] args) {
+//        LocalDateTime time = LocalDateTime.of(2024, 1, 1, 0, 0, 0);
+//        long second = time.toEpochSecond(ZoneOffset.UTC);
+//        System.out.println("second=" + second);
+//    }
 }

@@ -18,6 +18,18 @@ spring:
         max-idle: 10
         min-idle: 1
         time-between-eviction-runs: 10s
+  rabbitmq:
+    host: 192.168.10.102
+    port: 5672
+    virtual-host: / # 虚拟主机
+    username: root  # 用户名
+    password: 123321
+    listener:
+      simple:
+        prefetch: 1 # 每次只能获取一消息，处理完成才能获取下一个消息
+        concurrency: 1 # 消费端的监听个数(即@RabbitListener开启几个线程去处理数据。)
+        max-concurrency: 10 # 消费端的监听最大个数
+
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
 mybatis-plus:
