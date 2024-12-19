@@ -18,10 +18,6 @@ import static com.dianping.utils.CommonConstants.*;
 @Slf4j
 @Component
 public class SpringRabbitListener {
-//    @RabbitListener(queues = QUEUE_NAME)
-//    public void listenSimpleQueueMessage(String message) {
-//        log.info("spring 消费者接收到消息：[{}]", message);;
-//    }
 //
 //    @RabbitListener(queues = "work.queue")
 //    public void listenWorkQueueMessage1(String message) throws InterruptedException {
@@ -84,8 +80,15 @@ public class SpringRabbitListener {
             key = {ROUTING_KEY_DIRECT_ORDER_1}
     ))
     public void listenObjectQueue(Map<String, Object> msg) {
-        System.err.println("监听线程ID: " + Thread.currentThread().getId());
+        System.out.println("监听线程ID: " + Thread.currentThread().getId());
         // TODO 执行服务
         voucherOrderService.insertVoucherOrderFromMQ(msg);
     }
+
+
+//    @RabbitListener(queues = QUEUE_NAME)
+//    public void listenSimpleQueueMessage(String message) {
+//        log.info("spring 消费者接收到消息：[{}]", message);
+//        throw new RuntimeException("故意的");
+//    }
 }

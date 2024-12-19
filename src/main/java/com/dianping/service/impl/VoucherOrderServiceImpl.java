@@ -2,16 +2,24 @@ package com.dianping.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.dianping.dto.MultiDelayMessage;
 import com.dianping.dto.Result;
 import com.dianping.entity.VoucherOrder;
 import com.dianping.mapper.VoucherOrderMapper;
 import com.dianping.service.ISeckillVoucherService;
 import com.dianping.service.IVoucherOrderService;
+import com.dianping.utils.DelayMessageProcessor;
 import com.dianping.utils.RedisIdWorker;
 import com.dianping.utils.UserHolder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.Correlation;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessagePostProcessor;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +29,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -31,8 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.dianping.utils.CommonConstants.DIRECT_ORDER_EXCHANGE;
-import static com.dianping.utils.CommonConstants.ROUTING_KEY_DIRECT_ORDER_1;
+import static com.dianping.utils.CommonConstants.*;
 
 /**
  * <p>
@@ -80,16 +88,70 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             // 2.1. 不为0，代表没有购买资格
             return Result.fail(r == 1 ? "库存不足" : "不能重复下单");
         }
-        // 4. redis.call('xadd', 'stream.orders', '*', 'userId', userId, 'voucherId', voucherId, 'id', orderId)
-        // 将上述lua脚本代码模拟消息队列放入消息队列中。
-        Map<String, Object> msg = new HashMap<>(3);
-        msg.put("userId", userId);
-        msg.put("voucherId", voucherId);
-        msg.put("id", orderId);
-        rabbitTemplate.convertAndSend(DIRECT_ORDER_EXCHANGE, ROUTING_KEY_DIRECT_ORDER_1, msg);
 
+        boolean success = insertMessage(userId, voucherId, orderId);
+        if (!success) {
+            Result.fail("订单消息发送失败");
+        }
         // 5. 返回订单id
         return Result.ok(orderId);
+    }
+
+    public boolean insertMessage(Long userId, Long voucherId, long orderId) {
+        // 1. 创建correlationData
+        CorrelationData cd = new CorrelationData(String.valueOf(orderId));
+        // 2. 给Future添加confirmCallback
+        cd.getFuture().addCallback(new ListenableFutureCallback<>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                // 2.1 Future发生异常时处理逻辑
+                log.error("handle message ack fail", throwable);
+            }
+
+            @Override
+            public void onSuccess(CorrelationData.Confirm confirm) {
+                if (confirm.isAck()) {
+                    log.debug("发送消息成功，收到ack！");
+                } else {
+                    // 重发消息
+                    insertMessage(userId, voucherId, orderId);
+                    // result.getReason(), String类型，返回nack时的异常描述。
+                    log.error("发送消息失败，收到 nack，reason：{}", confirm.getReason());
+                }
+            }
+        });
+
+        // 3.发送消息。
+        try {
+            // 3. 组织消息数据
+            Map<String, Object> data = new HashMap<>(3);
+            data.put("userId", userId);
+            data.put("voucherId", voucherId);
+            data.put("id", orderId);
+
+            // 4. 发送消息到RabbitMQ交换机
+            rabbitTemplate.convertAndSend(DIRECT_ORDER_EXCHANGE, ROUTING_KEY_DIRECT_ORDER_1, data, cd);
+            return true; // 异步返回，消息投递由回调函数确认
+        } catch (Exception e) {
+            // 发送消息时发生异常
+            log.error("消息发送失败，订单ID：{}，错误信息：{}", orderId, e.getMessage());
+            return false;
+        }
+//        try {
+//            // TODO 通过延迟消息解决延迟订单的问题。
+//            Long[] delays = new Long[6];
+//            for (int i = 0; i < 6; i++) {
+//                delays[i] = 10000L;
+//            }
+//            VoucherOrder order = BeanUtil.fillBeanWithMap(data, new VoucherOrder(), true);
+////            log.info("{}==={}", order, delays);
+//            MultiDelayMessage<VoucherOrder> msg = MultiDelayMessage.of(order, delays);
+//            rabbitTemplate.convertAndSend(DELAY_EXCHANGE, DELAY_ORDER_ROUTING_KEY,
+//                    msg, new DelayMessageProcessor(msg.removeNextDelay().intValue()));
+//        } catch (AmqpException e) {
+//            log.error("延迟消息发送异常！", e);
+//            return false;
+//        }
     }
 
     @Override
@@ -122,6 +184,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return false;
         }
         save(voucherOrder);
-        return true;
+        throw new RuntimeException("故意的");
+//        return true;
     }
 }

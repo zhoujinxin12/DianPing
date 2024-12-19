@@ -5,10 +5,18 @@ import com.dianping.entity.Shop;
 import com.dianping.service.IShopService;
 import com.dianping.utils.CacheClient;
 import com.dianping.utils.RedisIdWorker;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessagePostProcessor;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +27,11 @@ import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.retry.backoff.Sleeper;
+import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import javax.annotation.Resource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,9 +42,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.dianping.utils.CommonConstants.QUEUE_NAME;
+import static com.dianping.utils.CommonConstants.*;
 import static com.dianping.utils.RedisConstants.CACHE_SHOP_KEY;
 
+@Slf4j
 //@EnableAspectJAutoProxy(exposeProxy = true)
 @SpringBootTest
 public class DianPingApplicationTest {
@@ -165,11 +176,8 @@ public class DianPingApplicationTest {
     @Test
     public void testDirectQueue() throws InterruptedException {
         // 交换机名称
-        String exchangeName = "root.direct";
         // 发送消息
-        rabbitTemplate.convertAndSend(exchangeName, "red", "hello, everyone");
-        rabbitTemplate.convertAndSend(exchangeName, "yellow", "hello, yellow");
-        rabbitTemplate.convertAndSend(exchangeName, "blue", "hello, blue");
+//        rabbitTemplate.convertAndSend(QUEUE_NAME, "hello, everyone");
     }
 
 
@@ -189,5 +197,46 @@ public class DianPingApplicationTest {
         msg.put("name", "jack");
         msg.put("age", 18);
         rabbitTemplate.convertAndSend("object.queue", msg);
+    }
+
+    @Test
+    void testPublisherConfir() throws InterruptedException {
+        // 1.创建CorrelationData
+        CorrelationData cd = new CorrelationData();
+        // 2.给Future添加ConfirmCallback
+        cd.getFuture().addCallback(new ListenableFutureCallback<>() {
+            @Override
+            public void onFailure(Throwable ex) {
+                // 2.1.Future发生异常是的处理逻辑，基本上不会触发。
+                log.error("handle message ack fail", ex);
+            }
+
+            @Override
+            public void onSuccess(CorrelationData.Confirm confirm) {
+                if (confirm.isAck()) {
+                    log.debug("发送消息成功，收到 ack！");
+                } else {
+                    // result.getReason(), String类型，返回nack时的异常描述。
+                    log.error("发送消息失败，收到 nack，reason：{}", confirm.getReason());
+                }
+            }
+        });
+
+        // 3.发送消息
+        rabbitTemplate.convertAndSend("hmall.direct", "red1", "hello", cd);
+    }
+
+    // 发送带过期时间的消息。
+    @Test
+    void testSendTTLMessage() {
+        rabbitTemplate.convertAndSend("simple.direct", "hi", "hello",
+                new MessagePostProcessor() {
+                    @Override
+                    public Message postProcessMessage(Message message) throws AmqpException {
+                        message.getMessageProperties().setExpiration("30000"); // 30s
+                        return message;
+                    }
+                });
+        log.info("消息发送成功！");
     }
 }
