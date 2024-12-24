@@ -27,6 +27,9 @@ public class DirectConfig {
     // 声明 第一个队列
     @Bean
     public Queue directQueue1() {
-        return QueueBuilder.durable(DIRECT_ORDER_QUEUE_1).build();
+        return QueueBuilder.durable(DIRECT_ORDER_QUEUE_1)
+                .withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", DEAD_LETTER_QUEUE_ROUTING_KEY)
+                .build();
     }
 }

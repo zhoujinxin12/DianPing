@@ -3,10 +3,8 @@ package com.dianping.controller;
 
 import com.dianping.dto.Result;
 import com.dianping.service.IVoucherOrderService;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 import javax.annotation.Resource;
 
 
@@ -30,5 +28,13 @@ public class VoucherOrderController {
         return voucherOrderService.seckillVoucher(voucherId);
     }
 
+    @GetMapping("/unpaid")
+    public Result unpaidVoucher() {
+        return voucherOrderService.unpaidVoucher();
+    }
 
+    @PostMapping("/pay/{id}")
+    public Result payVoucher(@PathVariable("id") String voucherId, @RequestBody String pwd) {
+        return voucherOrderService.pay(voucherId, pwd);
+    }
 }

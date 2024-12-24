@@ -1,8 +1,13 @@
 package com.dianping;
 
 import ch.qos.logback.classic.pattern.MessageConverter;
+import com.dianping.dto.Result;
 import com.dianping.entity.Shop;
+import com.dianping.mapper.VoucherMapper;
+import com.dianping.mapper.VoucherOrderMapper;
 import com.dianping.service.IShopService;
+import com.dianping.service.IVoucherOrderService;
+import com.dianping.service.IVoucherService;
 import com.dianping.utils.CacheClient;
 import com.dianping.utils.RedisIdWorker;
 import lombok.extern.slf4j.Slf4j;
@@ -239,4 +244,16 @@ public class DianPingApplicationTest {
                 });
         log.info("消息发送成功！");
     }
+
+    @Resource
+    VoucherOrderMapper voucherOrderMapper;
+    @Resource
+    IVoucherOrderService voucherService;
+    @Test
+    void testMapper() {
+//        System.out.println(voucherOrderMapper.getStatusById(127936342624567297L));
+        Result pay = voucherService.pay("127936342624567297", "123456");
+        System.out.println(pay);
+    }
+
 }

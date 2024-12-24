@@ -15,4 +15,9 @@ public class CommonConstants {
     public static final String ERROR_ROUTING_KEY = "error";
     public static final String ERROR_QUEUE_NAME = "error.queue";
 
+    public static final String DEAD_LETTER_EXCHANGE = "dead.letter.exchange";
+    public static final String DEAD_LETTER_QUEUE_ROUTING_KEY = "dead.letter.queue.routing.key";
+//    public static final String DEAD_LETTER_QUEUE_ROUTING_KEY = "dead.letter.queueb.routingkey";
+    public static final String DEAD_LETTER_QUEUE_NAME = "dead.letter.queue";
+//    public static final String DEAD_LETTER_QUEUEB_NAME = "dead.letter.queueb";
 }

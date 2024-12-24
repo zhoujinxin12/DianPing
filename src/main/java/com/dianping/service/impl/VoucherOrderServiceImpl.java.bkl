@@ -103,7 +103,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                     handleVoucherOrder(voucherOrder);
                     // 5. ACK确认 SACK stream.orders g1 id
                     stringRedisTemplate.opsForStream().acknowledge(queueName, "g1", record.getId());
-
                 } catch (Exception e) {
                     log.error("处理订单异常", e);
                     try {
