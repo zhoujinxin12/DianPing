@@ -245,15 +245,4 @@ public class DianPingApplicationTest {
         log.info("消息发送成功！");
     }
 
-    @Resource
-    VoucherOrderMapper voucherOrderMapper;
-    @Resource
-    IVoucherOrderService voucherService;
-    @Test
-    void testMapper() {
-//        System.out.println(voucherOrderMapper.getStatusById(127936342624567297L));
-        Result pay = voucherService.pay("127936342624567297", "123456");
-        System.out.println(pay);
-    }
-
 }

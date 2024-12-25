@@ -9,6 +9,7 @@ import org.springframework.amqp.rabbit.retry.RepublishMessageRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.backoff.ExponentialBackOffPolicy;
@@ -18,6 +19,7 @@ import org.springframework.retry.support.RetryTemplate;
 import static com.dianping.utils.CommonConstants.*;
 
 @Slf4j
+@ConditionalOnProperty(prefix = "spring.rabbitmq.listener.simple.retry",name = "enabled", havingValue = "true")
 @Configuration
 public class MqConifg {
     @Bean
@@ -54,6 +56,39 @@ public class MqConifg {
     @Bean
     public Binding bindingError(Queue errorQueue, DirectExchange errorExchange) {
         return BindingBuilder.bind(errorQueue).to(errorExchange).with(ERROR_ROUTING_KEY);
+    }
+
+    @Bean
+    public DirectExchange delayExchange() {
+        return ExchangeBuilder
+                .directExchange(DELAY_EXCHANGE)
+                .delayed()
+                .durable(true) // 设置delay的属性为true
+                .build();
+    }
+
+    @Bean
+    public Queue delayQueue1() {
+        return QueueBuilder.durable(DELAY_ORDER_QUEUE).build();
+    }
+
+    @Bean
+    public Binding bindingDelay1(Queue delayQueue1, DirectExchange delayExchange) {
+        return BindingBuilder.bind(delayQueue1).to(delayExchange).with(DELAY_ORDER_ROUTING_KEY);
+    }
+
+    @Bean
+    public DirectExchange directOrderExchange() {
+        return ExchangeBuilder.directExchange(DIRECT_ORDER_EXCHANGE)
+                .durable(true).build();
+    }
+    // 声明 第一个队列
+    @Bean
+    public Queue directOrderQueue1() {
+        return QueueBuilder.durable(DIRECT_ORDER_QUEUE_1)
+                .withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", DEAD_LETTER_QUEUE_ROUTING_KEY)
+                .build();
     }
 
     @Bean

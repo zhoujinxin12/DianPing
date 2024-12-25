@@ -7,7 +7,7 @@ public class CommonConstants {
     public static final String ROUTING_KEY_DIRECT_ORDER_1 = "direct.order.1";
 
 
-    public static final String  DELAY_EXCHANGE = "trade.delay.topic";
+    public static final String  DELAY_EXCHANGE = "trade.delay.DIRECT";
     public static final String  DELAY_ORDER_QUEUE = "trade.order.delay.queue";
     public static final String  DELAY_ORDER_ROUTING_KEY = "order.query";
 
@@ -20,4 +20,8 @@ public class CommonConstants {
 //    public static final String DEAD_LETTER_QUEUE_ROUTING_KEY = "dead.letter.queueb.routingkey";
     public static final String DEAD_LETTER_QUEUE_NAME = "dead.letter.queue";
 //    public static final String DEAD_LETTER_QUEUEB_NAME = "dead.letter.queueb";
+
+    // 定义订单超时的最大时间，延迟发送的时间间隔
+    public static final long MAX_ORDER_TIMEOUT_MILLIS = 5 * 60 * 1000;
+    public static final long SEND_DELAY_INTERVAL_MILLIS = 10 * 1000;
 }

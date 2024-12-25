@@ -1,45 +1,29 @@
 package com.dianping.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.lang.UUID;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.dianping.dto.MultiDelayMessage;
 import com.dianping.dto.Result;
-import com.dianping.entity.MqMessage;
+import com.dianping.dto.MqMessage;
 import com.dianping.entity.VoucherOrder;
 import com.dianping.mapper.VoucherOrderMapper;
+import com.dianping.service.IPaymentsService;
 import com.dianping.service.ISeckillVoucherService;
 import com.dianping.service.IVoucherOrderService;
 import com.dianping.utils.BusinessException;
-import com.dianping.utils.DelayMessageProcessor;
 import com.dianping.utils.RedisIdWorker;
 import com.dianping.utils.UserHolder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.amqp.AmqpException;
-import org.springframework.amqp.core.Correlation;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.aop.framework.AopContext;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.connection.stream.*;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -73,6 +57,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @Resource
     private VoucherOrderMapper voucherOrderMapper;
+
+    @Resource
+    private IPaymentsService paymentsService;
 
 //    @Resource
 //    private RetryTemplate retryTemplate;
@@ -218,11 +205,11 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         try {
             VoucherOrder voucherOrder = BeanUtil.fillBeanWithMap(msg.getContent(), new VoucherOrder(), true);
             Long userId = voucherOrder.getUserId();
-
-            // 消费者幂等性保证，保证消费者只会消费一次
+            Long voucherId = voucherOrder.getVoucherId();
+            Long orderId = voucherOrder.getId();
             int count = query()
                     .eq("user_id", userId)
-                    .eq("voucher_id", voucherOrder.getVoucherId())
+                    .eq("voucher_id", voucherId)
                     .count()
                     .intValue();
             if (count > 0) {
@@ -234,7 +221,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             // 扣减库存
             boolean success = seckillVoucherService.update()
                     .setSql("stock = stock - 1")
-                    .eq("voucher_id", voucherOrder.getVoucherId())
+                    .eq("voucher_id", voucherId)
                     .gt("stock", 0)
                     .update();
             if (!success) {
@@ -245,8 +232,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
             // 保存订单信息
             save(voucherOrder);
-            throw new BusinessException("guyide");
-//            return true;
+            paymentsService.prepaidTransactions(orderId, voucherId, userId);
+            // 把订单信息发送延迟队列进行超时判断。
+            return true;
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {

@@ -4,8 +4,10 @@ import com.dianping.dto.MultiDelayMessage;
 import com.dianping.entity.VoucherOrder;
 import com.dianping.service.IVoucherOrderService;
 import com.dianping.utils.DelayMessageProcessor;
+import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -15,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 
-import java.time.LocalDateTime;
+import java.io.IOException;
 
 import static com.dianping.utils.CommonConstants.*;
 
@@ -34,14 +36,21 @@ public class OrderStatusCheckListener {
             exchange = @Exchange(value = DELAY_EXCHANGE, delayed = "true", type = ExchangeTypes.TOPIC),
             key = DELAY_ORDER_ROUTING_KEY
     ))
-    public void listenOrderDelayMessage(MultiDelayMessage<VoucherOrder> msg) {
+    public void listenOrderDelayMessage(MultiDelayMessage<VoucherOrder> msg, Channel channel, Message message) throws IOException {
         VoucherOrder data = msg.getData();
         log.info(data.toString());
         // 1.查询订单状态
-        // 2.是否已经支付
         VoucherOrder order = voucherOrderService.getById(data.getId());
-        if (order != null && order.getStatus() == 2) {
+        if (order == null) {
+            log.error("数据库中订单丢失");
+            // 如果执行成功，手动确认
+            channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
+            return;
+        }
+        // 2.是否已经支付
+        if (order.getStatus() == 2) {
             // 订单已经支付了
+            channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
             return;
         }
         // 3.去支付服务查询真正的支付状态

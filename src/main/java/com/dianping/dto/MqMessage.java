@@ -1,4 +1,4 @@
-package com.dianping.entity;
+package com.dianping.dto;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

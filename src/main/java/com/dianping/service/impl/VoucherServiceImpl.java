@@ -37,6 +37,8 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
     private ISeckillVoucherService seckillVoucherService;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private VoucherMapper voucherMapper;
 
     @Override
     public Result queryVoucherOfShop(Long shopId) {
@@ -62,5 +64,11 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         // 保存秒杀信息到redis当中
         stringRedisTemplate.opsForValue().set(SECKILL_STOCK_KEY+voucher.getId(), voucher.getStock()+"");
 
+    }
+
+    @Override
+    public Long queryPayValueById(Long id) {
+//        Long one = query().select("pay_value").eq("id", id).one().getPayValue();
+        return voucherMapper.queryPayValueById(id);
     }
 }
