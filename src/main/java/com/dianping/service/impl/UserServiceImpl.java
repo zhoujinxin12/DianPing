@@ -171,6 +171,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.ok(count);
     }
 
+    @Override
+    public String getPassword(Long userId) {
+        return query().select("password")
+                .eq("id", userId).one().getPassword();
+    }
+
     private User createUserWithPhone(String phone) {
         // 1.创建用户
         User user = new User();

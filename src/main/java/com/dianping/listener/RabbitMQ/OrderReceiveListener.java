@@ -1,4 +1,4 @@
-package com.dianping.listener;
+package com.dianping.listener.RabbitMQ;
 
 import com.dianping.dto.MqMessage;
 import com.dianping.dto.MultiDelayMessage;
@@ -8,14 +8,17 @@ import com.dianping.utils.DelayMessageProcessor;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.annotation.*;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.io.IOException;
@@ -23,17 +26,19 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.dianping.utils.CommonConstants.*;
+import static com.dianping.utils.RedisConstants.LISTENER_ORDER_RECEIVED_LOCK;
 
 @Slf4j
-@Component
+@Service
 public class OrderReceiveListener {
     @Resource
     private IVoucherOrderService voucherOrderService;
+    @Resource
+    private RabbitTemplate rabbitTemplate;
+    @Resource
+    private RedissonClient redissonClient;
 
     private final RetryTemplate retryTemplate;
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
-
     public OrderReceiveListener() {
         // 配置 RetryTemplate
         this.retryTemplate = RetryTemplate.builder()
@@ -70,19 +75,33 @@ public class OrderReceiveListener {
          * 4、使用 RabbitMQ 的消息确认机制（ACK/NACK）来确保消息消费正确。
          */
         // TODO 先要验证幂等性！数据库中为存在改订单信息
-
+        // 消费幂等：通过设置分布式锁，确保同一个id在同一个时刻只能被一个线程操控。
+        // 消费成功后，insertVoucherOrderFromMq函数中会首先查数据库判断是否之前消费过一次。
+        // 如果消费过就抛出业务异常。
 //        System.out.println("监听线程ID: " + Thread.currentThread().getId());
-        log.info("消息的内容是：{}", message);
+        String id = msg.getMessageId();
+        RLock lock = redissonClient.getLock(LISTENER_ORDER_RECEIVED_LOCK + id);
+        // 获取锁
+        boolean isLock = lock.tryLock();
+        // 判断是否获取锁成功
+        if (!isLock) {
+            // 获取锁失败，返回错误或者重试
+            return;
+        }
         try {
             // 调用服务方法
             voucherOrderService.insertVoucherOrderFromMQ(msg);
             // 定义5分钟后超时，即定义30个10s的延迟分片
+            // 创建消息
             int N = (int) (MAX_ORDER_TIMEOUT_MILLIS / SEND_DELAY_INTERVAL_MILLIS);
             Long[] delays = new Long[N];
             Arrays.fill(delays, SEND_DELAY_INTERVAL_MILLIS);
             MultiDelayMessage<MqMessage> delayMsg = new MultiDelayMessage<>(msg, List.of(delays));
+            CorrelationData cd = new CorrelationData(msg.getMessageId());
+            log.info("延迟消息内容是：{}", delayMsg);
+            // 发送消息
             rabbitTemplate.convertAndSend(DELAY_EXCHANGE, DELAY_ORDER_ROUTING_KEY, delayMsg,
-                    new DelayMessageProcessor(delayMsg.removeNextDelay().intValue()));
+                    new DelayMessageProcessor(delayMsg.removeNextDelay().intValue()), cd);
             // 如果执行成功，手动确认
             channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
         } catch (BusinessException e) {
@@ -109,9 +128,11 @@ public class OrderReceiveListener {
                 // 超过最大重试次数后执行的逻辑
                 log.error("消息处理失败，已达到最大重试次数，发送到死信队列: {}", e.getMessage());
                 // 拒绝消息，并且不重新入队
-                sendExceptionToMQ(e, msg, DEAD_LETTER_QUEUE_ROUTING_KEY);
+                sendExceptionToMQ(e, msg);
                 channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
             }
+        } finally {
+            lock.unlock();
         }
     }
     private void sendToErrorLetterQueue(Message originalMessage, String errorMessage, Channel channel) {
@@ -144,14 +165,13 @@ public class OrderReceiveListener {
      *
      * @param exception 异常对象
      * @param msg 原始消息
-     * @param routingKey 路由键
      */
-    private void sendExceptionToMQ(Exception exception, MqMessage msg, String routingKey) {
+    private void sendExceptionToMQ(Exception exception, MqMessage msg) {
         try {
             // 构造异常消息的内容
             String exceptionMsg = buildExceptionMessage(exception, msg);
             // 将异常消息发送到 MQ
-            rabbitTemplate.convertAndSend(DEAD_LETTER_EXCHANGE, routingKey, exceptionMsg);
+            rabbitTemplate.convertAndSend(DEAD_LETTER_EXCHANGE, DEAD_LETTER_QUEUE_ROUTING_KEY, exceptionMsg);
         } catch (Exception e) {
             log.error("发送异常信息到MQ失败: {}", e.getMessage());
         }

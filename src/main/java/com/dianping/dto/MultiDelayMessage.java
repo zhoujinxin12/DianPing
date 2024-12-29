@@ -18,7 +18,7 @@ public class MultiDelayMessage<T> {
 
     public MultiDelayMessage(T data, List<Long> delayMillis) {
         this.data = data;
-        this.delayMillis = delayMillis;
+        this.delayMillis = CollUtil.newArrayList(delayMillis);
     }
     public static <T> MultiDelayMessage<T> of(T data, Long ... delayMillis) {
         return new MultiDelayMessage<>(data, CollUtil.newArrayList(delayMillis));

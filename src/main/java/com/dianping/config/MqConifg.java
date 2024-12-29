@@ -69,7 +69,10 @@ public class MqConifg {
 
     @Bean
     public Queue delayQueue1() {
-        return QueueBuilder.durable(DELAY_ORDER_QUEUE).build();
+        return QueueBuilder.durable(DELAY_ORDER_QUEUE)
+                .withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", DEAD_LETTER_QUEUE_ROUTING_KEY)
+                .build();
     }
 
     @Bean

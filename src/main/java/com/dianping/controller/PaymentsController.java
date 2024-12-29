@@ -17,11 +17,6 @@ public class PaymentsController {
     @Resource
     IPaymentsService paymentsService;
 
-    @GetMapping("/unpaid")
-    public Result unpaidVoucher() {
-        return paymentsService.unpaidVoucher();
-    }
-
     @PostMapping("/pay/{id}")
     public Result payVoucher(@PathVariable("id") String voucherId, @RequestBody String pwd) {
         return paymentsService.pay(voucherId, pwd);

@@ -20,5 +20,5 @@ public interface IVoucherOrderService extends IService<VoucherOrder> {
 
     Result unpaidVoucher();
 
-    Result pay(String voucherId, String pwd);
+    Integer queryOrderStatus(Long id);
 }

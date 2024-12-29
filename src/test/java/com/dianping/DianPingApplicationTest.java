@@ -1,54 +1,32 @@
 package com.dianping;
 
-import ch.qos.logback.classic.pattern.MessageConverter;
-import com.dianping.dto.Result;
-import com.dianping.entity.Shop;
-import com.dianping.mapper.VoucherMapper;
-import com.dianping.mapper.VoucherOrderMapper;
-import com.dianping.service.IShopService;
-import com.dianping.service.IVoucherOrderService;
-import com.dianping.service.IVoucherService;
-import com.dianping.utils.CacheClient;
-import com.dianping.utils.RedisIdWorker;
+import com.dianping.entity.VoucherOrder;
+import com.dianping.utils.StateMachineService;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.data.geo.Point;
-import org.springframework.data.redis.connection.RedisGeoCommands;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.retry.backoff.Sleeper;
+
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.support.MessageBuilder;
+
+import org.springframework.statemachine.StateMachine;
+import org.springframework.statemachine.persist.StateMachinePersister;
 import org.springframework.util.concurrent.ListenableFutureCallback;
+
+import java.util.HashMap;
+import java.util.Map;
+import com.dianping.config.orderStateMachine.*;
 
 import javax.annotation.Resource;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import static com.dianping.utils.CommonConstants.*;
-import static com.dianping.utils.RedisConstants.CACHE_SHOP_KEY;
 
 @Slf4j
 //@EnableAspectJAutoProxy(exposeProxy = true)
@@ -245,4 +223,50 @@ public class DianPingApplicationTest {
         log.info("消息发送成功！");
     }
 
+    @Resource
+    private StateMachineService<VoucherOrderStatus, VoucherOrderEvents, VoucherOrder> stateMachineService;
+    @Test
+    public void testStateMachineTransitions() {
+        // 初始化一个订单
+        VoucherOrder voucherOrder = new VoucherOrder();
+        voucherOrder.setId(2L);
+        voucherOrder.setStatus(VoucherOrderStatus.REFUNDING.value);
+
+        // 设置状态机上下文
+        Map<Long, VoucherOrder> voucherOrders = new HashMap<>();
+        voucherOrders.put(voucherOrder.getId(), voucherOrder);
+
+        Long id = 2L;
+        // 测试 INIT -> PAYED transition
+        VoucherOrder data = voucherOrders.get(id);
+//        log.info(data.toString());
+        org.springframework.messaging.Message<VoucherOrderEvents> message = MessageBuilder.withPayload(VoucherOrderEvents.CANCEL_REFUND).setHeader(VOrder_State_Machine_Header, data).build();
+        boolean result = stateMachineService.sendEvent(message, data);
+        log.info("result={}", result);
+    }
+
+//    @Resource
+//    private JdbcTemplate jdbcTemplate;
+//    @Test
+//    public void updateUserPassword() {
+//        // 1. 查询 tb_user 表中所有数据
+//        String querySql = "SELECT id, password FROM tb_user";
+//        List<Map<String, Object>> users = jdbcTemplate.queryForList(querySql);
+//
+//        // 2. 遍历用户数据，并加密密码字段
+//        for (Map<String, Object> user : users) {
+//            BigInteger bigIntId = (BigInteger) user.get("id");
+//            Long userId = bigIntId.longValue();
+//            String rawPassword = (String) user.get("password");
+//
+//            // 3. 使用 PasswordEncoder 加密密码
+//            String encodedPassword = PasswordEncoder.encode(rawPassword);
+//
+//            // 4. 将加密后的密码保存回数据库
+//            String updateSql = "UPDATE tb_user SET password = ? WHERE id = ?";
+//            jdbcTemplate.update(updateSql, encodedPassword, userId);
+//
+//            System.out.println("用户：" + " 的密码已加密更新。");
+//        }
+//    }
 }

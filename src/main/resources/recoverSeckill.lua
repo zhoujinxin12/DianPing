@@ -19,7 +19,7 @@ local orderKey = 'seckill:order:'..voucherId
 -- 3.1. 判断用户是否下单
 if(redis.call('sismember', orderKey, userId) ~= 1) then
     -- 3.1. redis并未实现用户下单和库存扣减
-    return 0
+    return 1
 end
 -- 3.2. 删除用户的下单记录
 redis.call('srem', orderKey, userId)

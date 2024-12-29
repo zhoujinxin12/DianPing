@@ -32,9 +32,4 @@ public class VoucherOrderController {
     public Result unpaidVoucher() {
         return voucherOrderService.unpaidVoucher();
     }
-
-    @PostMapping("/pay/{id}")
-    public Result payVoucher(@PathVariable("id") String voucherId, @RequestBody String pwd) {
-        return voucherOrderService.pay(voucherId, pwd);
-    }
 }

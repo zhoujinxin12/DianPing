@@ -17,11 +17,11 @@ public class CommonConstants {
 
     public static final String DEAD_LETTER_EXCHANGE = "dead.letter.exchange";
     public static final String DEAD_LETTER_QUEUE_ROUTING_KEY = "dead.letter.queue.routing.key";
-//    public static final String DEAD_LETTER_QUEUE_ROUTING_KEY = "dead.letter.queueb.routingkey";
     public static final String DEAD_LETTER_QUEUE_NAME = "dead.letter.queue";
-//    public static final String DEAD_LETTER_QUEUEB_NAME = "dead.letter.queueb";
 
     // 定义订单超时的最大时间，延迟发送的时间间隔
-    public static final long MAX_ORDER_TIMEOUT_MILLIS = 5 * 60 * 1000;
+    public static final long MAX_ORDER_TIMEOUT_MILLIS = 20 * 1000;
     public static final long SEND_DELAY_INTERVAL_MILLIS = 10 * 1000;
+    // 状态机的header
+    public static final String VOrder_State_Machine_Header = "voucherOrder";
 }

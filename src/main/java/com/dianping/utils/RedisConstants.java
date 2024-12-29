@@ -22,4 +22,10 @@ public class RedisConstants {
     public static final String FEED_KEY = "feed:";
     public static final String SHOP_GEO_KEY = "shop:geo:";
     public static final String USER_SIGN_KEY = "sign:";
+
+    // listener:order:received:
+    public static final String LISTENER_ORDER_RECEIVED_LOCK = "listener:order:received:";
+
+    // 定义优惠券订单状态机
+    public static final String VOUCHER_ORDER_STATE_MACHINE = "voucher:order:state:";
 }

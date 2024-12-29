@@ -5,9 +5,9 @@ import com.dianping.dto.Result;
 import com.dianping.entity.Payments;
 
 public interface IPaymentsService extends IService<Payments> {
-    Result unpaidVoucher();
-
     Result pay(String voucherId, String pwd);
 
     void prepaidTransactions(Long orderId, Long voucherId, Long userId);
+
+    String getStatusById(Long id);
 }

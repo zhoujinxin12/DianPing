@@ -10,6 +10,7 @@ import com.dianping.entity.SeckillVoucher;
 import com.dianping.service.ISeckillVoucherService;
 import com.dianping.service.IVoucherService;
 import com.dianping.utils.RedisData;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ import static com.dianping.utils.RedisConstants.SECKILL_STOCK_KEY;
  * @author 虎哥
  * @since 2021-12-22
  */
+@Slf4j
 @Service
 public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> implements IVoucherService {
 
@@ -44,6 +46,7 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
     public Result queryVoucherOfShop(Long shopId) {
         // 查询优惠券信息
         List<Voucher> vouchers = getBaseMapper().queryVoucherOfShop(shopId);
+//        log.info(vouchers.toString());
         // 返回结果
         return Result.ok(vouchers);
     }

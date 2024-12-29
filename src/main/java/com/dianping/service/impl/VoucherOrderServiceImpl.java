@@ -1,7 +1,10 @@
 package com.dianping.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.dianping.config.orderStateMachine.VoucherOrderEvents;
+import com.dianping.config.orderStateMachine.VoucherOrderStatus;
 import com.dianping.dto.Result;
 import com.dianping.dto.MqMessage;
 import com.dianping.entity.VoucherOrder;
@@ -10,6 +13,7 @@ import com.dianping.service.IPaymentsService;
 import com.dianping.service.ISeckillVoucherService;
 import com.dianping.service.IVoucherOrderService;
 import com.dianping.utils.BusinessException;
+import com.dianping.utils.CacheClient;
 import com.dianping.utils.RedisIdWorker;
 import com.dianping.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
@@ -25,14 +29,12 @@ import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static com.dianping.utils.CommonConstants.*;
+import static com.dianping.utils.RedisConstants.VOUCHER_ORDER_STATE_MACHINE;
 
 /**
  * <p>
@@ -61,6 +63,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private IPaymentsService paymentsService;
 
+    @Resource
+    private CacheClient cacheClient;
 //    @Resource
 //    private RetryTemplate retryTemplate;
 
@@ -107,6 +111,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         data.put("id", orderId);
         data.put("userId", userId);
         data.put("voucherId", voucherId);
+        data.put("status", VoucherOrderStatus.INIT.value);
         MqMessage msg = new MqMessage();
         msg.setContent(data);
         msg.setMessageId(String.valueOf(orderId));
@@ -183,22 +188,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         }
     }
 
-//        try {
-//            // TODO 通过延迟消息解决延迟订单的问题。
-//            Long[] delays = new Long[6];
-//            for (int i = 0; i < 6; i++) {
-//                delays[i] = 10000L;
-//            }
-//            VoucherOrder order = BeanUtil.fillBeanWithMap(data, new VoucherOrder(), true);
-    ////            log.info("{}==={}", order, delays);
-//            MultiDelayMessage<VoucherOrder> msg = MultiDelayMessage.of(order, delays);
-//            rabbitTemplate.convertAndSend(DELAY_EXCHANGE, DELAY_ORDER_ROUTING_KEY,
-//                    msg, new DelayMessageProcessor(msg.removeNextDelay().intValue()));
-//        } catch (AmqpException e) {
-//            log.error("延迟消息发送异常！", e);
-//            return false;
-//        }
-
     @Override
     @Transactional
     public boolean insertVoucherOrderFromMQ(MqMessage msg) {
@@ -207,11 +196,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             Long userId = voucherOrder.getUserId();
             Long voucherId = voucherOrder.getVoucherId();
             Long orderId = voucherOrder.getId();
-            int count = query()
-                    .eq("user_id", userId)
-                    .eq("voucher_id", voucherId)
-                    .count()
-                    .intValue();
+            // 判断用户是否已经购买了，处于核销状态才是重复购买。
+            int count = voucherOrderMapper.getCountHaveVoucher(voucherId, userId, Arrays.asList(VoucherOrderStatus.REFUNDED.value, VoucherOrderStatus.CANCELLED.value));
             if (count > 0) {
                 // 用户已经购买了，不允许重复下单
                 log.error("用户已经购买过一次！");
@@ -232,6 +218,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
             // 保存订单信息
             save(voucherOrder);
+//            stringRedisTemplate.opsForValue().set(VOUCHER_ORDER_STATE_MACHINE+orderId, String.valueOf(VoucherOrderStatus.INIT.value));
+            cacheClient.setWithLogicalExpire(VOUCHER_ORDER_STATE_MACHINE+orderId, voucherOrder, 20L, TimeUnit.SECONDS);
             paymentsService.prepaidTransactions(orderId, voucherId, userId);
             // 把订单信息发送延迟队列进行超时判断。
             return true;
@@ -256,25 +244,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     }
 
     @Override
-    public Result pay(String id, String pwd) {
-        Long orderId = Long.valueOf(id).longValue();
-        // TODO 1. 密码是否正确，错误返回密码错误
-
-        // TODO 2. 进行扣费，扣费失败返回异常
-        Integer status = voucherOrderMapper.getStatusById(orderId);
-        if (status == null) {
-            return Result.fail("该订单不存在，请刷新界面");
-        }
-        // 4. 支付成功写入数据库
-        String timeType = "pay_time";
-        Boolean isSuccess = voucherOrderMapper.setStatusSuccess(orderId, 2L, 1L, timeType, LocalDateTime.now());
-
-        // 5. 采用CAS保证幂等，预防重复支付
-        // isSuccess为false表示订单已经被修改了
-        if (isSuccess.equals(Boolean.FALSE)) {
-            return Result.fail("请勿重复支付");
-        }
-        // TODO 支付成功同步修改redis写回数据库。
-        return Result.ok();
+    public Integer queryOrderStatus(Long id) {
+        QueryWrapper<VoucherOrder> queryWrapper = new QueryWrapper<>();
+        queryWrapper.select("status").eq("id", id);
+        VoucherOrder voucherOrder = voucherOrderMapper.selectOne(queryWrapper);
+        return voucherOrder.getStatus();
     }
 }
