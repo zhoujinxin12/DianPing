@@ -1,4 +1,4 @@
-package com.dianping.controller;
+package com.dianping.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;

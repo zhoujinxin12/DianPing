@@ -2,6 +2,7 @@ package com.dianping.controller;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
+import com.dianping.annotation.Log;
 import com.dianping.dto.Result;
 import com.dianping.utils.SystemConstants;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.util.UUID;
 public class UploadController {
 
     @PostMapping("blog")
+    @Log(name = "用户上传博客的图片")
     public Result uploadImage(@RequestParam("file") MultipartFile image) {
         try {
             // 获取原始文件名称

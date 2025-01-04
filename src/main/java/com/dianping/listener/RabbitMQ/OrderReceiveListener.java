@@ -18,7 +18,6 @@ import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.io.IOException;
@@ -29,7 +28,7 @@ import static com.dianping.utils.CommonConstants.*;
 import static com.dianping.utils.RedisConstants.LISTENER_ORDER_RECEIVED_LOCK;
 
 @Slf4j
-@Service
+@Component
 public class OrderReceiveListener {
     @Resource
     private IVoucherOrderService voucherOrderService;

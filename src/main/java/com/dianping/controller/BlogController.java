@@ -2,12 +2,11 @@ package com.dianping.controller;
 
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.dianping.annotation.Log;
 import com.dianping.dto.Result;
 import com.dianping.dto.UserDTO;
 import com.dianping.entity.Blog;
-import com.dianping.entity.User;
 import com.dianping.service.IBlogService;
-import com.dianping.service.IUserService;
 import com.dianping.utils.SystemConstants;
 import com.dianping.utils.UserHolder;
 import org.springframework.web.bind.annotation.*;
@@ -31,11 +30,13 @@ public class BlogController {
     private IBlogService blogService;
 
     @PostMapping
+    @Log(name = "发布博客blog")
     public Result saveBlog(@RequestBody Blog blog) {
         return blogService.saveBlog(blog);
     }
 
     @PutMapping("/like/{id}")
+    @Log(name = "用户点赞博客")
     public Result likeBlog(@PathVariable("id") Long id) {
         return blogService.likeBlog(id);
     }

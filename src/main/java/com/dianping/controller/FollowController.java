@@ -1,6 +1,7 @@
 package com.dianping.controller;
 
 
+import com.dianping.annotation.Log;
 import com.dianping.dto.Result;
 import com.dianping.service.IFollowService;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,7 @@ public class FollowController {
     private IFollowService followService;
 
     @PutMapping("/{id}/{isFollow}")
+    @Log(name = "用户点击关注")
     public Result follow(@PathVariable("id") Long followUserId, @PathVariable("isFollow") Boolean isFollow) {
         return followService.follow(followUserId, isFollow);
     }

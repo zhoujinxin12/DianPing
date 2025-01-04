@@ -11,6 +11,7 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 @Slf4j
 @MapperScan("com.dianping.mapper")
+@MapperScan("com.dianping.dao")
 @SpringBootApplication
 @EnableAspectJAutoProxy(exposeProxy = true)
 public class DianPingApplication {

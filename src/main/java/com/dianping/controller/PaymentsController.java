@@ -1,5 +1,6 @@
 package com.dianping.controller;
 
+import com.dianping.annotation.Log;
 import com.dianping.dto.Result;
 import com.dianping.service.IPaymentsService;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ public class PaymentsController {
     IPaymentsService paymentsService;
 
     @PostMapping("/pay/{id}")
+    @Log(name = "用户支付订单")
     public Result payVoucher(@PathVariable("id") String voucherId, @RequestBody String pwd) {
         return paymentsService.pay(voucherId, pwd);
     }
